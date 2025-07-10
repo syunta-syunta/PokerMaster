@@ -1,23 +1,43 @@
-import React from 'react';
-import logo from './logo.svg';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 
 function App() {
+  const [backendStatus, setBackendStatus] = useState('接続中...');
+  const [apiResponse, setApiResponse] = useState('');
+
+  useEffect(() => {
+    // バックエンドのヘルスチェック
+    fetch('http://localhost:5000/health')
+      .then(response => response.json())
+      .then(data => {
+        setBackendStatus(`✅ バックエンド接続成功: ${data.status}`);
+      })
+      .catch(error => {
+        setBackendStatus('❌ バックエンド接続失敗');
+        console.error('Error:', error);
+      });
+
+    // API テスト
+    fetch('http://localhost:5000/api/test')
+      .then(response => response.json())
+      .then(data => {
+        setApiResponse(data.message);
+      })
+      .catch(error => {
+        console.error('Error:', error);
+      });
+  }, []);
+
   return (
     <div className="App">
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
+        <h1>🎯 PokerMaster</h1>
+        <p>{backendStatus}</p>
+        <p>API応答: {apiResponse}</p>
         <p>
-          Edit <code>src/App.tsx</code> and save to reload.
+          フロントエンド（React）とバックエンド（Express）が<br/>
+          正常に動作しています！
         </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
       </header>
     </div>
   );
