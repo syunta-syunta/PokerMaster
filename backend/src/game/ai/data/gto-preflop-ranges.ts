@@ -395,26 +395,6 @@ export function calculateOpenFrequency(range: Record<string, ActionFrequency>): 
   return Math.round((openCombos / totalCombos) * 1000) / 10;
 }
 
-/**
- * 2枚のホールカードからハンド表記に変換
- * 例: (A♥, K♠) → "AKo", (A♥, K♥) → "AKs", (A♥, A♠) → "AA"
- */
-export function cardsToHandNotation(rank1: string, rank2: string, suited: boolean): string {
-  // 内部ランク表記 '10' → 'T' に変換
-  const r1 = rank1 === "10" ? "T" : rank1;
-  const r2 = rank2 === "10" ? "T" : rank2;
-
-  const rankOrder = ["A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"];
-  const i1 = rankOrder.indexOf(r1);
-  const i2 = rankOrder.indexOf(r2);
-
-  // ペア
-  if (i1 === i2) return `${r1}${r2}`;
-
-  // 上位ランクを先頭に
-  const [high, low] = i1 < i2 ? [r1, r2] : [r2, r1];
-  return suited ? `${high}${low}s` : `${high}${low}o`;
-}
 
 // ============================================
 // デバッグ: レンジサマリー表示

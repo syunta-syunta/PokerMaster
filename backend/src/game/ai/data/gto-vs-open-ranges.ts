@@ -603,7 +603,6 @@ export const GTO_VS_OPEN_RANGES = {
 
   // vs HJ Open
   "CO_vsHJ": { position: "CO", scenario: "vsOpen", vsPosition: "HJ", stackDepthBB: 100, entries: createCO_vsHJ() },
-  "BTN_vsHJ": { position: "BTN", scenario: "vsOpen", vsPosition: "HJ", stackDepthBB: 100, entries: createBTN_vsUTG() }, // UTGに近い
 
   // vs CO Open
   "BTN_vsCO": { position: "BTN", scenario: "vsOpen", vsPosition: "CO", stackDepthBB: 100, entries: createBTN_vsCO() },
@@ -613,38 +612,7 @@ export const GTO_VS_OPEN_RANGES = {
 
   // BB Defense (vs all positions)
   "BB_vsUTG": { position: "BB", scenario: "bbDefense", vsPosition: "UTG", stackDepthBB: 100, entries: createBB_vsUTG() },
-  "BB_vsHJ":  { position: "BB", scenario: "bbDefense", vsPosition: "HJ",  stackDepthBB: 100, entries: createBB_vsUTG() }, // UTGに近い
-  "BB_vsCO":  { position: "BB", scenario: "bbDefense", vsPosition: "CO",  stackDepthBB: 100, entries: createBB_vsCO() },
+  "BB_vsCO": { position: "BB", scenario: "bbDefense", vsPosition: "CO", stackDepthBB: 100, entries: createBB_vsCO() },
   "BB_vsBTN": { position: "BB", scenario: "bbDefense", vsPosition: "BTN", stackDepthBB: 100, entries: createBB_vsBTN() },
-  "BB_vsSB":  { position: "BB", scenario: "bbDefense", vsPosition: "SB",  stackDepthBB: 100, entries: createBB_vsSB() },
+  "BB_vsSB": { position: "BB", scenario: "bbDefense", vsPosition: "SB", stackDepthBB: 100, entries: createBB_vsSB() },
 };
-
-/**
- * vs Open レンジのルックアップ
- * key: "${heroPos}_vs${villainPos}" 例: "BTN_vsCO", "BB_vsBTN"
- */
-export function getVsOpenEntry(
-  heroPos: string,
-  villainPos: string,
-  hand: string
-): ActionFrequency {
-  const key = `${heroPos}_vs${villainPos}`;
-  const table = (GTO_VS_OPEN_RANGES as Record<string, { entries: Record<string, ActionFrequency> }>)[key];
-  if (!table) return { fold: 100, call: 0, raise: 0 };
-  return table.entries[hand] ?? { fold: 100, call: 0, raise: 0 };
-}
-
-/**
- * RNGに基づいてvs Openアクションを決定 (rng: 0-100)
- */
-export function decideVsOpenAction(
-  heroPos: string,
-  villainPos: string,
-  hand: string,
-  rng: number
-): "fold" | "call" | "raise" {
-  const freq = getVsOpenEntry(heroPos, villainPos, hand);
-  if (rng <= freq.raise) return "raise";
-  if (rng <= freq.raise + freq.call) return "call";
-  return "fold";
-}
