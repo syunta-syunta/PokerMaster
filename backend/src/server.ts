@@ -2,7 +2,6 @@ import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import app from './app';
 import dotenv from 'dotenv';
-import { setupSocketHandlers } from './socket/socket-handler';
 
 dotenv.config();
 
@@ -13,6 +12,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 const server = http.createServer(app);
 
+// Socket.IO 初期化（ゲームハンドラはPhase 3Dで接続する。現時点では空のまま）
 const io = new SocketIOServer(server, {
   cors: {
     origin: FRONTEND_URL,
@@ -21,8 +21,6 @@ const io = new SocketIOServer(server, {
   },
   transports: ['websocket', 'polling'],
 });
-
-setupSocketHandlers(io);
 
 server.listen(PORT, HOST, () => {
   console.log('\n🚀 PokerMaster Backend Server Starting...');
@@ -36,7 +34,7 @@ server.listen(PORT, HOST, () => {
   console.log('  • POST /api/auth/register   - User registration');
   console.log('  • POST /api/auth/login      - User login');
   console.log('  • GET  /api/auth/me         - Get user info');
-  console.log('  • WS   socket.io            - Game events');
+  console.log('  • WS   socket.io            - (handlers not yet connected)');
   console.log('\n✅ Ready to accept connections!');
   console.log('━'.repeat(50));
 });
