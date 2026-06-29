@@ -154,7 +154,7 @@ export abstract class GameEngine {
     const initialBet = isPreflop ? this.table.config.bigBlind : 0;
 
     const round = new BettingRound(
-      this.table.getAllPlayers(),
+      this.table.getPlayersInActionOrder(isPreflop),
       {
         bigBlind: this.table.config.bigBlind,
         street: street as 'preflop' | 'flop' | 'turn' | 'river',

@@ -141,4 +141,34 @@ export class GameTable {
     }
     throw new Error('No active player found for postflop');
   }
+
+  /**
+   * ポーカーのルール通りのアクション順でプレイヤー配列を返す（フォールド済み/サイティングアウトは除外）。
+   *
+   * プリフロップ: UTG → ... → BTN → SB → BB （ディーラーの3つ後 = UTGから時計回り）
+   *   HU例外（2人）: BTN/SB が先、BB が後
+   * ポストフロップ: SB → BB → UTG → ... → BTN （ディーラーの次 = SBから時計回り。HUではBBが先、BTNが後でこれと同じ式で求まる）
+   *
+   * ディーラーの座席インデックスを基準に座席全体を見て計算するため、
+   * ディーラー自身がフォールド済み（ポストフロップでBTNが既にフォールドしているケース等）でも正しい順序になる。
+   */
+  getPlayersInActionOrder(isPreflop: boolean): TablePlayer[] {
+    const inHand = this.getPlayersInHand();
+    if (inHand.length === 0) return [];
+
+    const dealer = this.players.find(p => p.isDealer);
+    if (!dealer) return inHand; // ディーラー不在は fallback（座席順のまま）
+
+    const totalSeats = this.players.length;
+    // HU(2人)はプリフロップのみ特例: BTN(=SB)が先 = オフセット0。それ以外は通常通りUTG(+3)。
+    // n=3の場合は (dealerIdx+3)%3 = dealerIdx となり、UTGが存在しないためBTNが先になる（正しい）。
+    const offset = isPreflop ? (totalSeats === 2 ? 0 : 3) : 1;
+    const startSeat = (dealer.seatIndex + offset) % totalSeats;
+
+    return [...inHand].sort((a, b) => {
+      const aRel = (a.seatIndex - startSeat + totalSeats) % totalSeats;
+      const bRel = (b.seatIndex - startSeat + totalSeats) % totalSeats;
+      return aRel - bRel;
+    });
+  }
 }
