@@ -91,4 +91,31 @@ describe('GameEngine (TestGameEngine使用)', () => {
     const totalDistributed = result.potDistribution.reduce((s, d) => s + d.amount, 0);
     expect(totalDistributed).toBeCloseTo(35);
   });
+
+  describe('アクション順序', () => {
+    test('3人: プリフロップはBTN→SB→BBの順でアクションが回る', async () => {
+      // 3人テーブルにUTGは存在しないため、BTNがプリフロップの最初のアクション者になる
+      const table = makeTable(3);
+      const engine = new TestGameEngine(table);
+      await engine.playHand(); // 全員デフォルト(call/check)で進行
+      expect(engine.getActionOrderForStreet('preflop')).toEqual(['p0', 'p1', 'p2']); // BTN,SB,BB
+    });
+
+    test('3人: ポストフロップはSB→BB→BTNの順でアクションが回る', async () => {
+      const table = makeTable(3);
+      const engine = new TestGameEngine(table);
+      await engine.playHand();
+      expect(engine.getActionOrderForStreet('flop')).toEqual(['p1', 'p2', 'p0']); // SB,BB,BTN
+    });
+
+    test('HU: ディーラーが移動した後もBTN/SBがプリフロップ最初、BBがポストフロップ最初になる', async () => {
+      // 2人テーブルでディーラーボタンを1つ進める (p1がBTN/SB、p0がBBになる)
+      const table = makeTable(2);
+      table.advanceDealer();
+      const engine = new TestGameEngine(table);
+      await engine.playHand();
+      expect(engine.getActionOrderForStreet('preflop')[0]).toBe('p1'); // BTN/SBが先
+      expect(engine.getActionOrderForStreet('flop')[0]).toBe('p0'); // BBが先
+    });
+  });
 });

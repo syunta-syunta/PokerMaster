@@ -1,13 +1,12 @@
 # PROGRESS.md — PokerMaster 開発進捗
 
 > **ルール**: Claude Codeセッション終了時に必ず更新する。
-> 前のセッションの内容は消さずに、新しいエントリを追記する。
 
 ---
 
 ## 現在のフェーズ
 
-**Phase 3B: ゲームフロー** (完了)
+**BettingRound アクション順序バグ修正 完了** → **Phase 3C: AI エンジン (着手前に確認事項あり、下部参照)**
 
 ---
 
@@ -16,103 +15,121 @@
 | フェーズ | 内容 | ステータス |
 |---|---|---|
 | ✅ Phase 1 | インフラ・認証 | 完了 |
-| ✅ Phase 2 | 認証UI・ルーティング | 完了 |
-| ✅ Phase 3A | コアプリミティブ | 完了 |
-| ✅ Phase 3B | ゲームフロー | **完了** |
-| ⬜ Phase 3C | AIエンジン | 未着手 |
+| ✅ Phase 2 | 認証 UI・ルーティング | 完了 |
+| ✅ Phase 3A | コアプリミティブ | 完了 (52 tests, 91.6% coverage) |
+| ✅ Phase 3B | ゲームフロー | 完了 (78 tests, 87.81% coverage) PR マージ済み |
+| ✅ バグ修正 | BettingRound アクション順序 | **完了** (81 tests, 87.75% coverage) |
+| ⬜ Phase 3C | AI エンジン (ポストフロップ GTO) | **SPEC-phase3c.md が見つからず着手不可。要確認** |
 | ⬜ Phase 3D | サーバー統合 | 未着手 |
 | ⬜ Phase 3E | フロントエンド統合 | 未着手 |
 | ⬜ Phase 4 | 追加機能 | 未着手 |
 
 ---
 
-## Phase 3A 進捗
+## Phase 3A 完了済みタスク
 
-### 完了タスク
-- [x] ファイル構成作成 (`backend/src/game/core`, `types`, `__tests__`)
-- [x] `game.types.ts` — 共通型定義
-- [x] `Card.ts` — カードユーティリティ
-- [x] `Deck.ts` — デッキクラス
-- [x] `HandEvaluator.ts` — ハンド評価 (pokersolverラッパー)
-- [x] `Action.ts` — アクションファクトリ
-- [x] `ActionValidator.ts` — バリデーション
-- [x] テスト環境セットアップ (jest + ts-jest)
-- [x] `Card.test.ts` (9 tests)
-- [x] `Deck.test.ts` (8 tests)
-- [x] `HandEvaluator.test.ts` (21 tests)
-- [x] `ActionValidator.test.ts` (14 tests)
-- [x] `backend/src/types/pokersolver.d.ts` — pokersolver型定義
-- [x] GitHub Actions CI設定 (`.github/workflows/ci.yml`)
+- [x] game.types.ts / Card.ts / Deck.ts / HandEvaluator.ts / Action.ts / ActionValidator.ts
+- [x] pokersolver.d.ts (型定義)
+- [x] Jest + ts-jest 環境
+- [x] 52 テスト全 PASS / カバレッジ 91.6%
+- [x] GitHub Actions CI
 
-### テスト結果
-- 全52テストPASS
-- カバレッジ: 91.6% (目標85%を達成)
-  - Card.ts: 100% / Deck.ts: 100% / HandEvaluator.ts: 95.34% / ActionValidator.ts: 93.02% / Action.ts: 63.15%
-
-### 実装上の注意点 (次フェーズへの引き継ぎ)
-- **Royal Flush判定**: pokersolverは"Royal Flush"を返さず常に"Straight Flush"として返す。
-  `HandEvaluator.evaluate()` 内で `isRoyalFlush()` ヘルパーがベスト5枚を見て A-K-Q-J-T か判定し補正している。
-  findWinners() で別途Royal Flush判定が必要な場面があれば同様の補正を入れること。
-
-### ブロッカー
-*(なし)*
+**実装上の注意**: pokersolver は Royal Flush を返さない → `HandEvaluator.ts` 内の `isRoyalFlush()` で補正済み。
 
 ---
 
-## Phase 3B 進捗
+## Phase 3B 完了済みタスク
 
-### 完了タスク
-- [x] Step0: 旧実装削除 (`src/data/`, `src/engine/`, `src/socket/`, `src/services/game-service.ts`, `src/types/index.ts`)
-  - `src/services/memory-storage.ts` は認証で使用中のため削除対象から除外（HANDOFF記載の `rm -rf services/` は実施せず該当ファイルのみ削除）
-- [x] Step0: `server.ts` を最小構成に書き直し（Express+CORS、Socket.IO初期化のみ、ゲームハンドラ未接続）
-- [x] Step1: `game.types.ts` にPhase 3B型を追記（既存型は無変更）
-- [x] Step2: `backend/src/game/engine/` 5ファイル実装
-  - `TablePlayer.ts` / `GameTable.ts` / `BettingRound.ts` / `PotManager.ts` / `GameEngine.ts`
-- [x] Step3: `backend/src/game/__tests__/engine/` テスト作成
-  - `TestGameEngine.ts`（テストヘルパー、`getCommunityCardCount()`を追加実装）
-  - `BettingRound.test.ts` (14 tests)
-  - `PotManager.test.ts` (7 tests)
-  - `GameEngine.test.ts` (7 tests)
+- [x] 旧実装削除 (`src/data/`, `engine/`, `socket/`, `services/game-service.ts`, `types/index.ts`)
+  - ※ `services/memory-storage.ts` は認証で使用中のため削除対象外
+- [x] server.ts を最小構成に書き直し (Socket.IO ハンドラは Phase 3D で接続)
+- [x] game.types.ts に Phase 3B 型を追記
+- [x] `backend/src/game/engine/` 5ファイル実装
+  - TablePlayer.ts / GameTable.ts / BettingRound.ts / PotManager.ts / GameEngine.ts
+- [x] テスト 4 ファイル (TestGameEngine.ts + 3 test files)
+- [x] 78 テスト全 PASS / カバレッジ Stmts 87.81% / Lines 91.16%
+- [x] PR マージ済み
 
-### テスト結果
-- 全78テストPASS（Phase 3Aの52 + Phase 3Bの26）
-- カバレッジ (`src/game/**`, テスト・ai data除外): Stmts 87.81% / Lines 91.16% / Funcs 84.44% / Branch 72.13%
-  - 目標85%(Stmts/Lines基準)を達成
-  - `GameTable.ts` は62.66%と低め — `getUTGPlayer()` / `getFirstPostflopPlayer()` / `removePlayer()` がGameEngineから未使用のため未テスト（SPEC通り実装済みだが現状呼ばれていないユーティリティ）。Phase 3D以降でマルチプレイヤー対応時に使用見込み
-
-### 実装上の注意点 (次フェーズへの引き継ぎ)
-- **BBオプションのテスト**: `BettingRound` のテストでBBプレイヤーの `betThisStreet` を事前にビッグブラインド額に設定しておく必要がある（実際のゲームではブラインド投入後の状態を想定しているため）。これを忘れると `validateCheck` がポストフロップと同じロジックで弾いてしまう。
-- **`GameEngine.handleAllFolded()` / テストの `WinnerInfo.handResult`**: フォールドのみで決着した場合、ショーダウンが発生しないため `handResult` は `null as unknown as HandResult` を使っている。型安全性より「ショーダウンなしの勝者」という実態を優先した設計。
-
-### ブロッカー
-*(なし)*
+**実装上の注意**:
+- `GameTable.ts` のカバレッジが 62.66% と低め: `getUTGPlayer()` / `getFirstPostflopPlayer()` / `removePlayer()` が未使用のため。Phase 3D 以降で使用予定。
+- `GameEngine.handleAllFolded()` の WinnerInfo.handResult は `null as unknown as HandResult` を使用 (ショーダウンなし決着のため意図的)。
+- BB オプションテスト: BettingRound テストでは BB プレイヤーの `betThisStreet` を事前設定必要。
 
 ---
 
-## セッション履歴
+## 🔧 BettingRound アクション順序バグ修正 (完了)
 
-### 2026-06-27 — Phase 3B 実装・完了
-- HANDOFF.md Step0に従い旧実装(`src/data/`, `engine/`, `socket/`, `services/game-service.ts`, `types/index.ts`)を削除
-- `server.ts` を最小構成に書き直し（Socket.IOゲームハンドラはPhase 3Dで接続予定）
-- SPEC-phase3b.md に従い `backend/src/game/engine/` の5ファイルを実装
-- `game.types.ts` にPhase 3B用型を追記（Street, PlayerStatus, PositionName, GameConfig, TablePlayer, Pot, PublicPlayerState, GameSnapshot, HandResultEvent, ServerToClientEvents, ClientToServerEvents）
-- テスト4ファイル作成、全78テストPASS（カバレッジ87.81%）
-- 次セッションは Phase 3C (AIエンジン) へ。HANDOFF.md 参照
+### 問題の詳細
 
-### 2026-06-27 — Phase 3A 実装・完了
-- SPEC-phase3a.md に従い `backend/src/game/` 配下にコアプリミティブを実装
-- pokersolver用の型定義 (`pokersolver.d.ts`) を追加
-- jest + ts-jest 環境構築、4テストファイル作成、全52テストPASS (カバレッジ91.6%)
-- GitHub Actions CI (`.github/workflows/ci.yml`) を新規作成 — backend (typecheck+test) / frontend (build) の2ジョブ構成
-- 既存の `backend/src/data/`, `engine/`, `services/`, `socket/` (Phase別構成と異なる旧実装) とは独立した新規ディレクトリ構成
-- 次セッションは Phase 3B (ゲームフロー) へ。HANDOFF.md 参照
+`BettingRound` は渡された `players` 配列順でアクションを回す。
+旧 `GameEngine.runBettingRound()` が `getAllPlayers()` を渡しており、座席追加順になっていた。
+HU (2人) は最初のハンド (dealerSeatIndex=0) では偶然正しく動くが、3人以上、
+またはディーラーボタンが移動した後のHUで順序が崩れる。
+
+### 修正内容
+
+1. `GameTable.getPlayersInActionOrder(isPreflop: boolean)` を実装
+   - **HANDOFF.md記載のコード例には不具合があったため修正して実装した**:
+     HU(2人)のプリフロップオフセットが `1` と指定されていたが、これだとBBが先にアクションすることになり、
+     実際のヘッズアップルール(BTN/SBが先)と矛盾する。正しいオフセットは `0`。
+   - さらに、ディーラー自身がフォールド済み（ポストフロップでBTNが既に降りているケース）でも
+     正しく動作するよう、`inHand` 内のインデックスではなく座席インデックス(`seatIndex`)を基準に
+     計算する方式に変更した（HANDOFF.mdの実装例は `inHand.findIndex` ベースで、
+     ディーラー脱落時に `fallback: 座席順のまま返す` という不正確な動作になっていた）。
+2. `GameEngine.runBettingRound()` で `getAllPlayers()` → `getPlayersInActionOrder(isPreflop)` に変更
+3. `TestGameEngine.ts` に `actionOrderLog` / `getActionOrderForStreet()` を追加（テスト用のアクション順序記録機能）
+4. `GameEngine.test.ts` に3テスト追加:
+   - 3人プリフロップ順序 (BTN→SB→BB、3人にはUTGが存在しないため)
+   - 3人ポストフロップ順序 (SB→BB→BTN)
+   - **HUでディーラーボタンを1つ進めた後の順序検証**（座席0偶然一致のバグを実際に検出できるテスト）
+
+### 進捗
+
+- [x] `GameTable.getPlayersInActionOrder()` 実装（HANDOFF.md記載のオフセット誤りを修正）
+- [x] `GameEngine.runBettingRound()` 修正
+- [x] アクション順序テスト3件追加・PASS確認
+- [x] 全81テストPASS (Phase 3A 52 + Phase 3B 26 + 順序修正3) / カバレッジ Stmts 87.75% / Lines 91.38%
+- [x] `npx tsc --noEmit` エラーなし
 
 ---
 
-## 既知の技術的問題
+## ⚠️ Phase 3C 着手不可: SPEC-phase3c.md が見つからない
 
-- pokersolver の型定義なし → `declare module` で回避予定
-- Express 4.x 必須 (5.x は path-to-regexp 非互換)
+HANDOFF.md には「`SPEC-phase3c.md` (Chat が作成済み、プロジェクト内に存在)」と記載があるが、
+プロジェクトルートに `SPEC-phase3c.md` が存在しない（確認済み: `SPEC-phase3a.md` と `SPEC-phase3b.md` のみ存在）。
+Phase 3C本体（BetSizer/DrawDetector/HandClassifier/BoardAnalyzer/BluffCalculator/PostflopStrategy/PostflopEngine/GtoAiPlayer）は
+このファイルの内容に依存するため、ユーザーに以下のいずれかを確認してから着手する:
+- SPEC-phase3c.md を再送/再配置してもらう
+- または別のChatセッションで再作成してもらう
+
+## Phase 3C: SPEC 完了内容
+
+**ファイル**: `SPEC-phase3c.md` (セクション10B アドeンダムが最新・優先)
+
+設計確定済みの主な要素:
+- **Gap 1 解決**: `BoardAnalyzer.ts` でレンジアドバンテージスコア + `betFreqMultiplier` (0.70〜1.30)
+- **Gap 2 解決**: `BluffCalculator.ts` で alpha 計算 (ブラフ頻度 = alpha × ストリート係数 × ブロッカー品質 × multiplier)
+- **Fix A**: `applySPRModifier()` をカテゴリ別に分岐 (SEMI_BLUFF 高SPR → ベット増、SHOWDOWN 高SPR → チェック増)
+- **Fix B**: `BetSizer.ts` で幾何学的サイジング `f = ((1+2·SPR)^(1/n) - 1) / 2`
+- **ズレA修正**: DEFENDER_TABLE をベットサイズ別 3 段階 (small/medium/large) に分割、MDF 準拠
+- **ズレB修正**: BLUFF の `calculateBluffFrequency()` に `betFreqMultiplier` を適用、バリュー:ブラフ比率を維持
+
+**GTO 精度目標**:
+- HU 平均: ~62-65%
+- プリフロップ (テーブル参照): ~88-92%
+- MVP 後: CFR 事前計算で ~90-97% を目指す予定
+
+### Phase 3C 未着手タスク
+
+- [ ] BetSizer.ts
+- [ ] DrawDetector.ts
+- [ ] HandClassifier.ts
+- [ ] BoardAnalyzer.ts
+- [ ] BluffCalculator.ts
+- [ ] PostflopStrategy.ts
+- [ ] PostflopEngine.ts
+- [ ] GtoAiPlayer.ts
+- [ ] テスト 5 ファイル
 
 ---
 
@@ -120,11 +137,35 @@
 
 | ファイル名 | 説明 | 場所 |
 |---|---|---|
-| `gto-preflop-ranges.ts` | 6max RFI全5ポジション | `backend/src/game/ai/data/` 配置済み |
-| `gto-vs-open-ranges.ts` | vs Open全スポット | 同上 配置済み |
-| `gto-vs-3bet-and-8max-ranges.ts` | vs 3Bet + 8max RFI | 同上 配置済み |
-| `gto-vs-4bet-and-8max-vs3bet.ts` | vs 4Bet + 8max vs 3Bet | 同上 配置済み |
+| `gto-preflop-ranges.ts` | 6max RFI 全 5 ポジション (検証済み) | `backend/src/game/ai/data/` |
+| `gto-vs-open-ranges.ts` | vs Open 全スポット (検証済み) | 同上 |
+| `gto-vs-3bet-and-8max-ranges.ts` | vs 3Bet + 8max RFI (検証済み) | 同上 |
+| `gto-vs-4bet-and-8max-vs3bet.ts` | vs 4Bet + 8max vs 3Bet (検証済み) | 同上 |
 
-> Phase 3Bまで未使用 (AIエンジンはPhase 3Cで実装予定)。
-> 旧実装(`backend/src/data/`, `engine/`, `socket/`, `services/game-service.ts`)はPhase 3B Step0で削除済み。
-> `backend/src/game/ai/data/` のGTOファイルが現在唯一の正式版。
+Phase 3B まで未使用。Phase 3C の `GtoAiPlayer.ts` 実装時に接続する。
+
+---
+
+## セッション履歴
+
+### 2026-06-29 — BettingRound アクション順序バグ修正・完了
+- `GameTable.getPlayersInActionOrder()` を実装（HANDOFF.md記載のHU(2人)オフセット誤り `1`→`0` を修正、座席インデックスベースの計算に変更）
+- `GameEngine.runBettingRound()` を修正してこのメソッドを使用
+- `TestGameEngine.ts` にアクション順序記録機能を追加
+- アクション順序検証テスト3件追加、全81テストPASS (カバレッジ87.75%)
+- **Phase 3C着手を試みたが `SPEC-phase3c.md` がプロジェクト内に存在しないことを確認。ユーザーへ確認待ち。**
+
+### 2026-06-27 — Phase 3B 実装・完了 (PR マージ)
+- 旧実装削除 / server.ts 最小化 / game engine 5 ファイル実装
+- 78 テスト全 PASS (87.81% coverage)
+
+### 2026-06-27 — Phase 3A 実装・完了
+- core 5 ファイル / 52 テスト PASS (91.6% coverage) / CI 設定
+
+### 2026-06-28 — Phase 3C SPEC 設計完了 (Chat)
+- GTO 思考プロセスリサーチ
+- 5 機能カテゴリ設計 (NUTTED/VALUE/SHOWDOWN/SEMI_BLUFF/BLUFF)
+- Gap 1 (レンジアドバンテージ) / Gap 2 (alpha ブラフ) / Fix A (SPR) / Fix B (幾何学的サイジング) を設計・検証
+- ズレA (defender テーブルのサイズ依存) / ズレB (multiplier 適用) を修正
+- SPEC-phase3c.md 作成 (セクション10B アドeンダム含む)
+- BettingRound アクション順序バグを特定 → Phase 3C 前に修正決定
