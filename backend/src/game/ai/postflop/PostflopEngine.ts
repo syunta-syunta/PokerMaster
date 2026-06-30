@@ -42,7 +42,14 @@ export function decidePostflopAction(
   const boardAdv = analyzeBoardAdvantage(communityCards, context.isPFA);
 
   // ═══ Step 2: ハンド分類 ═══
-  const draw = detectComboDrawIfAny(holeCards, communityCards, handResult.rankValue);
+  let draw = detectComboDrawIfAny(holeCards, communityCards, handResult.rankValue);
+
+  // リバーではドローという概念が存在しない（追加カードが来ないため、
+  // 未完成のドローは「外れたドロー」であり SEMI_BLUFF ではなく BLUFF として扱う）。
+  if (context.street === 'river') {
+    draw = 'none';
+  }
+
   const category = classifyHand(handResult, holeCards, communityCards, draw);
 
   // ═══ Step 3 & 4: アクションを決定 ═══

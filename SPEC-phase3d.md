@@ -291,15 +291,9 @@ export class AIGameEngine extends GameEngine {
     return dealer?.id === playerId;
   }
 
-  /**
-   * プリフロップでの最後のアグレッシブアクションを記録する。
-   * BettingRound は GameEngine 内部なので、playHand() の preflop 後に設定。
-   * ⚠️ この実装は簡略版。厳密には BettingRound からイベントを受け取る必要がある。
-   *    MVP では「ポジションを持つ側 (BTN/IP) が PFA」と近似する。
-   */
-  setPreflopAggressor(playerId: string | null): void {
-    this.preflopAggressorId = playerId;
-  }
+  // preflopAggressorId は基底クラス GameEngine の protected フィールドを継承する。
+  // BettingRound の onAggression コールバックにより playHand() 内で自動設定される。
+  // このクラスで setPreflopAggressor() を実装する必要はない。
 }
 ```
 
@@ -758,13 +752,15 @@ class GtoAiPlayer {
 
 実際のシグネチャが異なる場合は `AIGameEngine.getAiAction()` 側を合わせる。
 
-### 10.2 isPFA (プリフロップアグレッサー) の判定
+### 10.2 isPFA (プリフロップアグレッサー) の追跡
 
-厳密な判定は複雑なため、MVP では以下の近似を使う:
-- 2人 (HU): ディーラー/BTN 側を PFA とする
-- 3人以上: プリフロップでレイズした最後のプレイヤーを PFA とする
+`GameEngine.preflopAggressorId` は `BettingRound.onAggression` コールバックで自動設定される。
+（Phase 3C 完了後の isPFA コールバック改修で実装済み）
 
-本来は `BettingRound` からイベントを受け取るべきだが、MVP 段階では上記の近似で十分。
+- レイズ/オールインレイズ発生時: `preflopAggressorId = 最後にレイズしたプレイヤーID`
+- レイズなし: `preflopAggressorId = BB のプレイヤーID` (デフォルト)
+
+`AIGameEngine.getAiAction()` では `this.preflopAggressorId` を直接参照する。
 
 ### 10.3 ゲームループの無限ループ防止
 

@@ -204,6 +204,34 @@ describe('PostflopEngine (統合テスト)', () => {
     });
   });
 
+  describe('リバーのドロー再分類 (課題2修正確認)', () => {
+    const hole: [Card, Card] = [c('8', 'spades'), c('9', 'spades')];
+    const flopBoard: Card[] = [c('6', 'spades'), c('7', 'spades'), c('2', 'diamonds')];
+    const riverBoard: Card[] = [
+      c('6', 'spades'), c('7', 'spades'), c('2', 'diamonds'), c('K', 'diamonds'), c('J', 'clubs'),
+    ];
+
+    test('リバーで未完成のフラッシュドロー → draw=none → BLUFFに分類される', () => {
+      const handResult = handEvaluator.evaluate(hole, riverBoard);
+      expect(handResult.rankValue).toBe(-1); // メイドハンドなし (フラッシュ未完成)
+      const decision = decidePostflopAction(hole, riverBoard, handResult, baseContext({ street: 'river' }));
+      expect(decision.drawType).toBe('none');
+      expect(decision.category).toBe('BLUFF');
+    });
+
+    test('フロップ/ターンでは同じカード構成でも draw が検出される (回帰確認)', () => {
+      const handResult = handEvaluator.evaluate(hole, flopBoard);
+      expect(handResult.rankValue).toBe(-1);
+      const flopDecision = decidePostflopAction(hole, flopBoard, handResult, baseContext({ street: 'flop' }));
+      expect(flopDecision.drawType).not.toBe('none'); // フラッシュ+OESDのコンボドローとして検出される
+      expect(flopDecision.category).toBe('SEMI_BLUFF');
+
+      const turnDecision = decidePostflopAction(hole, flopBoard, handResult, baseContext({ street: 'turn' }));
+      expect(turnDecision.drawType).not.toBe('none');
+      expect(turnDecision.category).toBe('SEMI_BLUFF');
+    });
+  });
+
   describe('Fix B: 幾何学的betAmount確認', () => {
     function findFirstBet(
       hole: [Card, Card],

@@ -8,56 +8,62 @@
 
 ## 🔄 現在地
 
-**フェーズ**: Phase 3C — AI エンジン (ポストフロップ GTO) **完了** → **Phase 3D: サーバー統合**
-**ステータス**: Phase 3C 全タスク完了・全182テストPASS(4回連続実行で安定確認済み)。
-　　　　　　　`SPEC-phase3d.md` の存在を確認済み（内容は未読了、次セッションで読むこと）。
+**フェーズ**: Phase 3C 後処理 (3課題) **完了** → **Phase 3D: サーバー統合**
+**ステータス**: Chatが方針決定した3課題（フルハウス分岐コメント追加・リバーDraw再分類修正・
+　　　　　　　プリフロップAI実装）全て対応完了。全193テストPASS（3回連続実行で安定確認）。
+　　　　　　　`SPEC-phase3d.md` の内容はまだ読んでいない（冒頭のみ前セッションで確認済み）。
 **最終更新**: Claude Code (2026-06-29)
 
 ---
 
-## ✅ Phase 3C 完了内容
+## ✅ Phase 3C 後処理 (3課題) 完了内容
 
-`backend/src/game/ai/postflop/` 配下に7ファイル + `backend/src/game/ai/GtoAiPlayer.ts` を実装:
+### 課題1: フルハウスNUTTED分岐 → コメント追加のみ（対応不要と判断されたため）
 
-- `BetSizer.ts` — Fix B 幾何学的サイジング (`f = ((1+2·SPR)^(1/n) - 1) / 2`)
-- `DrawDetector.ts` — フラッシュ/ストレートドロー・コンボドロー検出
-- `HandClassifier.ts` — 5機能カテゴリ分類 (NUTTED/VALUE/SHOWDOWN/SEMI_BLUFF/BLUFF)
-- `BoardAnalyzer.ts` — レンジアドバンテージスコア + `betFreqMultiplier` (Gap 1)
-- `BluffCalculator.ts` — alpha計算によるGTO均衡ブラフ頻度 (Gap 2)
-- `PostflopStrategy.ts` — AGGRESSOR_TABLE/DEFENDER_TABLE + 各種頻度補正
-- `PostflopEngine.ts` — 統合エントリーポイント (`decidePostflopAction`)
-- `GtoAiPlayer.ts` — プリフロップ/ポストフロップ統合インターフェース（プリフロップは未実装スタブ）
+`HandClassifier.ts` のrankValue===5分岐に、到達不能であることを示すコメントを追加した。
+ロジック変更なし。
 
-**重要**: `PostflopStrategy.ts` の `selectBetSize()` と `applySPRModifier()` は、SPEC-phase3c.md
-本文(セクション7)の版ではなく、**セクション10Bアドエンダム版を直接実装した**（本文版は一切実装していない）。
-本文版を後から探しても存在しないので注意。
+### 課題2: リバーでのSEMI_BLUFF誤分類 → 修正済み
 
-テスト: `backend/src/game/__tests__/ai/` に8ファイル（仕様の5ファイル + 自主追加3ファイル: `BetSizer.test.ts`,
-`PostflopStrategy.test.ts`, `GtoAiPlayer.test.ts`）。全182テストPASS、`ai/postflop/`カバレッジ95.22%。
+`PostflopEngine.decidePostflopAction()` 内で `context.street === 'river'` の場合に
+`draw` を強制的に `'none'` に上書きする処理を追加した。回帰テスト2件を
+`PostflopEngine.test.ts` に追加（リバーでBLUFFに分類されること、フロップ/ターンでは
+従来通りドローが検出されること）。
 
-`npx tsc --noEmit` エラーなし、`npm test` 全PASS済み（4回連続実行で確認）。
+**実装時の注意**: HANDOFF.mdが提案していたテストフィクスチャ（hole=8s9s, board=6s7s2d）は、
+実際にはフラッシュドローとOESDを同時に満たし `combo_draw` になることが判明した
+（`flush_draw` 単体ではない）。テストの期待値はこれを踏まえて `drawType !== 'none'` という
+形に調整してある。
 
----
+### 課題3: GtoAiPlayer.decidePreflopAction() → 実装済み
 
-## ⚠️ Phase 3C実装中に発見した仕様との不整合（要Chat確認）
+4つのGTOレンジデータファイルと接続し、RFI/vsOpen/vs3Bet/vs4Betの4シナリオに対応した。
 
-詳細はPROGRESS.mdの「実装中に発見した仕様との不整合」セクション参照。サマリー:
+**🚨 HANDOFF.mdの提案コードに存在しないシンボル名があった**: `import { GTO_PREFLOP_RANGES } from
+'./data/gto-preflop-ranges'` という記載があったが、実際のエクスポート名は `GTO_RFI_RANGES`。
+修正して実装した。他の3ファイルのインポート名は提案通りで問題なかった。
 
-1. **フルハウスのNUTTED判定が事実上到達不能**: `HandClassifier.classifyHand()` の rankValue===5
-   (フルハウス) で `isBoardPaired===false → NUTTED` という分岐があるが、3〜5枚のコミュニティカード
-   + ホール2枚という制約上、フルハウスはボード側に必ず重複ランクを伴う（数学的に証明済み）。
-   実害はないが、Chatの設計意図と異なる可能性がある。
+**HANDOFF.mdの提案から変更した設計判断**:
+- シナリオ(RFI/vsOpen/vs3Bet/vs4Bet)判定を「`currentBet`と`lastRaiseIncrement`から推測する」
+  という提案を採用せず、`PreflopDecisionContext.scenario` を呼び出し側が明示的に渡す設計にした
+  （ベットサイズからの逆算はサイジング規約に依存し脆いため）。
+  **Phase 3DでGameEngineからGtoAiPlayerを呼び出す際は、必ず `scenario` フィールドを
+  正しく設定すること。** ベッティング履歴（誰が何回レイズしたか）はGameEngine/BettingRound側が
+  把握しているはずなので、そこから判定して渡す。
+- `GTO_VS_OPEN_RANGES` のキー網羅性が不完全（例: `BTN_vsHJ`等が存在しない）ため、
+  `findVsOpenTable()` で同じヒーローポジションの別テーブルにフォールバックする処理を実装。
+- `GTO_VS4BET_RANGES` にUTGエントリなし（仕様通り、UTGはほぼ3Betされないため）。
+  該当する場合はnull→フォールドにフォールバック。
+- BBは`GTO_RFI_RANGES`にエントリなし。RFIシナリオでBBの場合は常にcheckする特別処理を追加。
+- 8max専用ポジション(UTG1/UTG2/LJ)はRFI/vs3Betは専用テーブル、vsOpen/vs4Betは6max版で近似。
 
-2. **「リバー: SEMI_BLUFF は draw=none に再分類される」テスト(section10.5)が未実装**:
-   このテストが前提とする「ストリートに応じてドロー判定を無効化する」ロジックが
-   `DrawDetector.ts`/`HandClassifier.ts`/`PostflopEngine.ts` のどこにも存在しない
-   (spec本文のコードに一切記載がない)。このテストのみ実装を見送った。
-   必要であれば `PostflopEngine.decidePostflopAction()` に `context.street==='river'` 時の
-   `draw='none'`強制ロジックを追加実装する必要がある。
+詳細はPROGRESS.mdの「Phase 3C 後処理」セクション参照。新規テスト12件追加、
+`throw new Error('Not yet implemented')` は削除済み。
 
-3. **統計的テストの安定性**: `decidePostflopAction` はRNGを使うため、頻度検証テストは
-   N=400〜3000のサンプリング + 許容マージンで実装した（厳密な`toBeCloseTo`は標本誤差で
-   頻繁に失敗するため不採用）。
+### 全体テスト結果
+
+`npx tsc --noEmit` エラーなし。`npm test` 全193件PASS（3回連続実行で安定確認）。
+カバレッジ: 全体91.15% / `ai/postflop/` 96.3% / `ai/` 87.65%。
 
 ---
 
@@ -72,14 +78,16 @@
    Socket.IOイベント待機、AIプレイヤーは`GtoAiPlayer.decide()`を呼ぶ設計。詳細は未確認）
 3. SPEC-phase3d.mdの指示に従って実装する
 
-### ⚠️ Phase 3D着手前に検討すべき事項
+### ⚠️ Phase 3D実装時の重要な注意点
 
-- `GtoAiPlayer.decidePreflopAction()` が未実装スタブ（`throw new Error`）のまま残っている。
-  Phase 3Dで実際にAIプレイヤーを動かす場合、プリフロップの意思決定も必要になるはずなので、
-  `backend/src/game/ai/data/gto-preflop-ranges.ts` 等を使った実装が必要になる可能性が高い。
-  SPEC-phase3d.mdにこの実装が含まれているか確認すること。含まれていなければChatに確認。
-- 上記「仕様との不整合」2点について、Phase 3D着手前にChatの判断を仰ぐかどうか確認すること
-  （実害は今のところないため、急ぎではない）。
+- **`GtoAiPlayer.decidePreflopAction()` を呼ぶ際は `PreflopDecisionContext.scenario` を
+  正しく設定すること。** 自動判定は行われない。GameEngine/BettingRound側でベッティング
+  履歴（レイズ回数）を追跡し、RFI(誰もレイズしていない)/vsOpen(1回レイズされている)/
+  vs3Bet(自分のオープンが3Betされた)/vs4Bet(自分の3Betが4Betされた)を判定して渡す必要がある。
+  vsOpenの場合は `raiserPosition` も必須。
+- `GtoAiPlayer.decidePostflopAction()` の `isIP` は現状ハードコードで `false` になっている
+  (`// TODO: ゲームエンジンからポジション情報を受け取る`というコメントが残っている)。
+  Phase 3Dで実際のポジション情報から正しく設定する必要がある。
 
 ---
 
@@ -102,11 +110,14 @@
 | アクション待機 | `requestAction()` 抽象メソッド | Socket.IO/AI/テストで実装を差し替え可能 |
 | GTO AI 精度方針 | MVP は heuristic (~65% HU 精度) | MVP 後に CFR 事前計算で精度向上予定 |
 | マルチウェイ GTO | MVP では対応しない | HU から 6-max への拡張時に対応 |
-| BettingRound 順序 | 座席インデックスベースの計算で修正・完了 | 6-max AI 実装で即壊れるため |
+| BettingRound 順序 | 座席インデックスベースで修正済み | 6-max AI 実装で即壊れるため |
 | services/ディレクトリ | 全削除ではなく `game-service.ts` のみ削除 | `memory-storage.ts` は認証で使用中 |
-| Phase 3C selectBetSize/applySPRModifier | セクション10Bアドエンダム版のみ実装、本文版は実装せず | アドエンダムが本文を上書きする仕様のため |
-| Phase 3C betAmount計算 | サイズバケットに関わらず単一の幾何学的フラクションを使用 (Fix B) | 10B-4の意図を汲み、ストリートを跨いだスタック投入の一貫性を確保 |
-| GtoAiPlayer プリフロップ | 未実装スタブのまま (`throw Error`) | SPEC-phase3cの範囲外（ポストフロップのみが対象）。Phase 3D以降で実装 |
+| Phase 3C selectBetSize/applySPRModifier | セクション10Bアドエンダム版のみ実装 | アドエンダムが本文を上書きする仕様のため |
+| Phase 3C betAmount計算 | サイズバケットに関わらず単一の幾何学的フラクションを使用 (Fix B) | ストリートを跨いだスタック投入の一貫性を確保 |
+| フルハウス NUTTED分岐 | 対応不要・コメントのみ追加 | 数学的に到達不能なデッドコード |
+| リバーの draw 判定 | street==='river' で強制的に 'none' | ドローは未来のカードへの期待であり、リバーには未来がない |
+| プリフロップAIのシナリオ判定 | ベットサイズから推測せず、呼び出し側が明示的に指定 | サイジング規約への依存を避け、堅牢性を優先 |
+| vsOpenテーブルのフォールバック | 完全一致がない場合、同ヒーローポジションの別テーブルで近似 | 存在しないキーでの即フォールドより妥当な近似 |
 
 ---
 
@@ -116,38 +127,32 @@
 - `backend/src/app.ts` / `routes/` / `middleware/` / `controllers/auth-controller.ts`
 - `backend/src/services/memory-storage.ts`
 - `backend/src/types/auth-types.ts`, `pokersolver.d.ts`
-
-### Phase 3A〜バグ修正で完了済み（変更しない）
 - `backend/src/game/core/*.ts` (5ファイル)
-- `backend/src/game/engine/*.ts` (5ファイル、`getPlayersInActionOrder()`含む)
-- `backend/src/game/__tests__/*.test.ts`, `__tests__/engine/*.ts` (Phase 3A+3B分)
+- `backend/src/game/engine/*.ts` (5ファイル)
 - `backend/src/server.ts`（最小構成）
 
-### Phase 3Cで作成したファイル
+### Phase 3Cで作成・Phase 3C後処理で更新したファイル
 ```
 backend/src/game/ai/
-  GtoAiPlayer.ts
+  GtoAiPlayer.ts             ← 今回 decidePreflopAction() を実装
   postflop/
     BetSizer.ts
     DrawDetector.ts
-    HandClassifier.ts
+    HandClassifier.ts        ← 今回コメント追加 (課題1)
     BoardAnalyzer.ts
     BluffCalculator.ts
     PostflopStrategy.ts
-    PostflopEngine.ts
+    PostflopEngine.ts        ← 今回リバーdraw修正 (課題2)
 backend/src/game/__tests__/ai/
   DrawDetector.test.ts
   HandClassifier.test.ts
   BoardAnalyzer.test.ts
   BluffCalculator.test.ts
-  PostflopEngine.test.ts
-  BetSizer.test.ts          ← 自主追加
-  PostflopStrategy.test.ts  ← 自主追加
-  GtoAiPlayer.test.ts       ← 自主追加
+  PostflopEngine.test.ts     ← 今回回帰テスト2件追加
+  BetSizer.test.ts
+  PostflopStrategy.test.ts
+  GtoAiPlayer.test.ts        ← 今回プリフロップテスト12件追加、書き直し
 ```
-
-### Phase 3Cで更新したファイル
-- `backend/src/game/types/game.types.ts`（Phase 3C型を末尾に追記。既存部分は無変更）
 
 ### Phase 3Dで実装予定
 - `SPEC-phase3d.md` 参照（未読了）。`GameManager`/`GameRoom`/`AIGameEngine` 等のサーバー統合層
@@ -156,9 +161,9 @@ backend/src/game/__tests__/ai/
 
 ## ⚠️ 未解決事項
 
-1. 上記「Phase 3C実装中に発見した仕様との不整合」2点（フルハウスNUTTED分岐、リバーDraw再分類）
-2. `GtoAiPlayer.decidePreflopAction()` の未実装スタブをいつ実装するか（Phase 3DのSPEC内容次第）
-3. `backend/src/game/engine/GameTable.ts` の `getUTGPlayer()` / `getFirstPostflopPlayer()` が
+1. `GtoAiPlayer.decidePostflopAction()` の `isIP` がハードコード `false`。Phase 3Dで実際の
+   ポジション情報から設定する必要がある。
+2. `backend/src/game/engine/GameTable.ts` の `getUTGPlayer()` / `getFirstPostflopPlayer()` が
    依然未使用（`getPlayersInActionOrder()`に置き換わって以降）。バックグラウンドタスクとして
    削除提案済み(task_2d9a3f39)だが未対応の場合は残っている可能性がある。
 
@@ -166,13 +171,14 @@ backend/src/game/__tests__/ai/
 
 ## 🐛 既知の問題
 
-| 問題 | 状態 | 回避策 |
-|---|---|---|
-| pokersolver が Royal Flush を返さない | 対応済み | `HandEvaluator.ts` 内で補正 |
-| BettingRound のアクション順序が座席順依存 | 対応済み | `getPlayersInActionOrder()` で修正 |
-| services/ ディレクトリを全削除できない | 把握済み | `memory-storage.ts` は認証で使用中のため `game-service.ts` のみ削除済み |
-| フルハウスのNUTTED分岐が到達不能 | 把握済み・実害なし | 上記「未解決事項」参照 |
-| リバーDraw再分類ロジックが未実装 | 把握済み・該当テストのみ未実装 | 上記「未解決事項」参照 |
+| 問題 | 状態 |
+|---|---|
+| pokersolver が Royal Flush を返さない | 対応済み |
+| BettingRound のアクション順序が座席順依存 | 対応済み |
+| フルハウス NUTTED 分岐が到達不能 | 対応不要と判断・コメント追加のみ |
+| リバーで SEMI_BLUFF に誤分類される | 対応済み |
+| GtoAiPlayer プリフロップ未実装 | 対応済み |
+| GtoAiPlayer.decidePostflopAction の isIP がハードコード | 未対応・Phase 3Dで対応予定 |
 
 ---
 
@@ -181,18 +187,20 @@ backend/src/game/__tests__/ai/
 - `SPEC-phase3d.md` — **Phase 3Dの詳細仕様（次セッションで必読、まだ読んでいない）**
 - `SPEC-phase3c.md` — Phase 3C仕様（完了済み、参照用。セクション10Bが最終版）
 - `backend/src/game/types/game.types.ts` — 全型定義（Phase 3A+3B+3C分）
-- `backend/src/game/ai/data/` — GTOレンジデータ4ファイル（プリフロップ用、Phase 3Cでも未接続）
+- `backend/src/game/ai/data/` — GTOレンジデータ4ファイル（接続済み）
 
 ---
 
 ## 🔚 Codeセッション終了時のチェックリスト
 
-**Phase 3C実装セッション（完了）:**
-- [x] SPEC-phase3c.md セクション10B の修正を反映している
-- [x] ズレA確認: SHOWDOWN が small/large で異なる fold 率を返す
-- [x] ズレB確認: betFreqMultiplier=0.7 の時 BLUFF bet頻度も 70% に下がる
-- [x] Fix A確認: SEMI_BLUFF + 高SPR で betMedium が増加する
-- [x] Fix B確認: SPR=6 フロップで betAmount が ≈67%pot になる
-- [x] カバレッジ 85% 以上 (ai/postflop/ 以下) — 95.22%達成
+**Phase 3C 後処理セッション（完了）:**
+- [x] 課題1: HandClassifier.ts にコメント追加
+- [x] 課題2: PostflopEngine.ts に street==='river' → draw='none' 修正
+- [x] 課題2: リバードロー再分類テスト追加・PASS
+- [x] 課題3: decidePreflopAction() 実装完了
+- [x] 課題3: GtoAiPlayer 新規テスト PASS
+- [x] `throw new Error('Not yet implemented')` が削除されている
+- [x] `npx tsc --noEmit` エラーなし
+- [x] `npm test` 全件 PASS（193件、3回連続実行で安定）
 - [x] PROGRESS.md 更新
-- [x] HANDOFF.md 更新
+- [x] HANDOFF.md 更新（次は Phase 3D と明記）

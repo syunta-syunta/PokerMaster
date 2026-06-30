@@ -25,10 +25,13 @@ export function classifyHand(
   // フォーカード以上 → 常にNUTTED
   if (rankValue >= 6) return 'NUTTED';
 
-  // フルハウス: ほぼ常にNUTTED（ただしボードペアがある場合は相手もフルハウス可能性）
+  // フルハウス: ボードペアの有無で分岐するが、
+  // isBoardPaired===false は数学的に到達不能（ホールカード2枚では
+  // 3枚の同ランクを供給できないため、フルハウス成立時は必ずボード側に
+  // ペア以上が存在する）。デッドコードだが安全側のフォールバックとして残す。
   if (rankValue === 5) {
     const boardPaired = isBoardPaired(communityCards);
-    return boardPaired ? 'VALUE' : 'NUTTED';
+    return boardPaired ? 'VALUE' : 'NUTTED'; // 後者は理論上到達しない
   }
 
   // フラッシュ: ナッツフラッシュかどうかで判定
