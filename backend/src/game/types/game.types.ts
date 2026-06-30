@@ -163,3 +163,71 @@ export interface ClientToServerEvents {
   'player-action': (action: PlayerAction) => void;
   'leave-game': () => void;
 }
+
+// ─── Phase 3C 追加型 ────────────────────────────────────────────
+
+/** ドローの種類 */
+export type DrawType =
+  | 'none'
+  | 'flush_draw'        // フラッシュドロー (強セミブラフ)
+  | 'oesd'             // 両面ストレートドロー (強セミブラフ)
+  | 'combo_draw'       // フラッシュ + ストレートドロー (最強セミブラフ)
+  | 'gutshot'          // ガットショット (弱セミブラフ)
+  | 'backdoor_flush'   // バックドアフラッシュドロー (補助)
+  | 'backdoor_straight'; // バックドアストレートドロー (補助)
+
+/** ハンドの機能的カテゴリ (GTOの思考プロセスに対応) */
+export type HandCategory =
+  | 'NUTTED'     // エクイティ >75% : ポットを最大化する
+  | 'VALUE'      // エクイティ 55-75%: バリューベットで利益を得る
+  | 'SHOWDOWN'   // エクイティ 40-55%: チェックでエクイティを実現する
+  | 'SEMI_BLUFF' // ドロー 30-50%: フォールドエクイティ + ドロー完成EV
+  | 'BLUFF';     // エクイティ <30%: alpha計算に基づいて選択的にブラフ
+
+/** ベットサイズのバケット */
+export type BetSizeBucket = 'small' | 'medium' | 'large';
+// small = 33% pot, medium = 67% pot, large = 100%+ pot
+
+/** ポストフロップの意思決定コンテキスト */
+export interface PostflopContext {
+  isPFA: boolean;              // プリフロップアグレッサーか
+  isIP: boolean;               // インポジションか
+  spr: number;                 // スタック ÷ ポット
+  street: 'flop' | 'turn' | 'river';
+  pot: number;                 // ポット額 (BB)
+  effectiveStack: number;      // 実効スタック (BB)
+  facingBet: number | null;    // 直面しているベット額 (null = 自分が先に行動)
+  facingBetSizeBucket: BetSizeBucket | null; // 直面しているベットのサイズ分類
+}
+
+/** ポストフロップの決定結果 */
+export interface PostflopDecision {
+  action: 'check' | 'bet' | 'call' | 'raise' | 'fold';
+  betSizeBucket?: BetSizeBucket; // betまたはraiseの場合
+  betAmount?: number;            // 実際のBB額
+  category: HandCategory;        // 判断に使用したカテゴリ (デバッグ用)
+  drawType: DrawType;            // 検出されたドロー (デバッグ用)
+}
+
+/** ボードアドバンテージの分析結果 */
+export interface BoardAdvantageResult {
+  score: number;              // 0〜10 (10 = この側が強い)
+  hasNutAdvantage: boolean;   // ラージベット/オーバーベット可能
+  betFreqMultiplier: number;  // 0.70 〜 1.30
+  wetness: number;            // 0〜3 (ボードの濡れ度)
+}
+
+/** アクション頻度 (Aggressor用: bet) */
+export interface AggressorFrequencies {
+  check: number;    // 合計100
+  betSmall: number;
+  betMedium: number;
+  betLarge: number;
+}
+
+/** アクション頻度 (Defender用: call) */
+export interface DefenderFrequencies {
+  fold: number;   // 合計100
+  call: number;
+  raise: number;
+}
