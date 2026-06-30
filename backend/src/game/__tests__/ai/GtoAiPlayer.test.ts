@@ -16,7 +16,7 @@ function preflopContext(overrides: Partial<PreflopDecisionContext> = {}): Preflo
 describe('GtoAiPlayer', () => {
   describe('decidePreflopAction', () => {
     test('RFIシナリオ: UTGでAA → 100%レイズ', () => {
-      const ai = new GtoAiPlayer({ position: 'UTG', isPFA: false });
+      const ai = new GtoAiPlayer({ position: 'UTG' });
       ai.setHoleCards([c('A', 'spades'), c('A', 'hearts')]);
       const context = preflopContext({ scenario: 'RFI', currentBet: 1, playerBetThisStreet: 0 });
       const action = ai.decidePreflopAction(context);
@@ -24,7 +24,7 @@ describe('GtoAiPlayer', () => {
     });
 
     test('RFIシナリオ: UTGで72o → 100%フォールド', () => {
-      const ai = new GtoAiPlayer({ position: 'UTG', isPFA: false });
+      const ai = new GtoAiPlayer({ position: 'UTG' });
       ai.setHoleCards([c('7', 'hearts'), c('2', 'clubs')]);
       const context = preflopContext({ scenario: 'RFI', currentBet: 1, playerBetThisStreet: 0 });
       const action = ai.decidePreflopAction(context);
@@ -32,7 +32,7 @@ describe('GtoAiPlayer', () => {
     });
 
     test('RFIシナリオ: BBは常にチェック (GTO_RFI_RANGESにBBエントリが存在しないため特別扱い)', () => {
-      const ai = new GtoAiPlayer({ position: 'BB', isPFA: false });
+      const ai = new GtoAiPlayer({ position: 'BB' });
       ai.setHoleCards([c('7', 'hearts'), c('2', 'clubs')]);
       const context = preflopContext({ scenario: 'RFI', currentBet: 1, playerBetThisStreet: 1 });
       const action = ai.decidePreflopAction(context);
@@ -40,7 +40,7 @@ describe('GtoAiPlayer', () => {
     });
 
     test('vsOpenシナリオ: BTNがUTGオープンに対しAKsで100%3Bet (raise)', () => {
-      const ai = new GtoAiPlayer({ position: 'BTN', isPFA: false });
+      const ai = new GtoAiPlayer({ position: 'BTN' });
       ai.setHoleCards([c('A', 'spades'), c('K', 'spades')]);
       const context = preflopContext({
         scenario: 'vsOpen', raiserPosition: 'UTG', currentBet: 2.5, playerBetThisStreet: 0,
@@ -50,7 +50,7 @@ describe('GtoAiPlayer', () => {
     });
 
     test('vsOpenシナリオ: BTNがUTGオープンに対しJJで3Bet/Callの混合戦略になる', () => {
-      const ai = new GtoAiPlayer({ position: 'BTN', isPFA: false });
+      const ai = new GtoAiPlayer({ position: 'BTN' });
       ai.setHoleCards([c('J', 'spades'), c('J', 'hearts')]);
       const context = preflopContext({
         scenario: 'vsOpen', raiserPosition: 'UTG', currentBet: 2.5, playerBetThisStreet: 0,
@@ -66,7 +66,7 @@ describe('GtoAiPlayer', () => {
     });
 
     test('vs3Betシナリオ: 4Bet/Call/Foldの頻度がレンジ通り (UTG vs3Bet QQ)', () => {
-      const ai = new GtoAiPlayer({ position: 'UTG', isPFA: true });
+      const ai = new GtoAiPlayer({ position: 'UTG' });
       ai.setHoleCards([c('Q', 'spades'), c('Q', 'hearts')]);
       const context = preflopContext({
         scenario: 'vs3Bet', currentBet: 9, playerBetThisStreet: 2.5,
@@ -85,7 +85,7 @@ describe('GtoAiPlayer', () => {
     });
 
     test('レンジテーブルが存在しない (UTGはvsOpenテーブルを持たない) → フォールドにフォールバック', () => {
-      const ai = new GtoAiPlayer({ position: 'UTG', isPFA: false });
+      const ai = new GtoAiPlayer({ position: 'UTG' });
       ai.setHoleCards([c('A', 'spades'), c('A', 'hearts')]);
       const context = preflopContext({
         scenario: 'vsOpen', raiserPosition: 'HJ', currentBet: 5, playerBetThisStreet: 0,
@@ -95,7 +95,7 @@ describe('GtoAiPlayer', () => {
     });
 
     test('vsOpenで完全一致テーブルがない場合、同ヒーローポジションの別テーブルで近似する (BTN vs HJ → BTN_vsUTG等にフォールバック)', () => {
-      const ai = new GtoAiPlayer({ position: 'BTN', isPFA: false });
+      const ai = new GtoAiPlayer({ position: 'BTN' });
       ai.setHoleCards([c('A', 'spades'), c('A', 'hearts')]);
       const context = preflopContext({
         scenario: 'vsOpen', raiserPosition: 'HJ', currentBet: 2.5, playerBetThisStreet: 0,
@@ -107,7 +107,7 @@ describe('GtoAiPlayer', () => {
     });
 
     test('チェック可能な状況 (toCall<=0) ではfoldの代わりにcheckを返す', () => {
-      const ai = new GtoAiPlayer({ position: 'UTG', isPFA: false });
+      const ai = new GtoAiPlayer({ position: 'UTG' });
       ai.setHoleCards([c('7', 'hearts'), c('2', 'clubs')]);
       const context = preflopContext({ scenario: 'RFI', currentBet: 1, playerBetThisStreet: 1 });
       const action = ai.decidePreflopAction(context);
@@ -115,7 +115,7 @@ describe('GtoAiPlayer', () => {
     });
 
     test('ホールカード未設定でdecidePreflopActionを呼ぶとエラー', () => {
-      const ai = new GtoAiPlayer({ position: 'BTN', isPFA: true });
+      const ai = new GtoAiPlayer({ position: 'BTN' });
       const context = preflopContext();
       expect(() => ai.decidePreflopAction(context)).toThrow('Hole cards not set');
     });
@@ -123,23 +123,25 @@ describe('GtoAiPlayer', () => {
 
   describe('decidePostflopAction', () => {
     test('ホールカード未設定でdecidePostflopActionを呼ぶとエラー', () => {
-      const ai = new GtoAiPlayer({ position: 'BTN', isPFA: true });
+      const ai = new GtoAiPlayer({ position: 'BTN' });
       const context: BettingContext & {
         playerId: string; pot: number; facingBet: number | null; street: 'flop' | 'turn' | 'river';
+        isPFA: boolean; isIP: boolean;
       } = {
         currentBet: 0, lastRaiseIncrement: 1, playerStack: 100, playerBetThisStreet: 0, bigBlind: 1,
-        playerId: 'p1', pot: 10, facingBet: null, street: 'flop',
+        playerId: 'p1', pot: 10, facingBet: null, street: 'flop', isPFA: true, isIP: true,
       };
       expect(() => ai.decidePostflopAction([c('K', 'hearts'), c('7', 'diamonds')], context)).toThrow('Hole cards not set');
     });
 
     test('setHoleCards後、decidePostflopActionがPlayerActionを返す (check/fold/call/raise)', () => {
-      const ai = new GtoAiPlayer({ position: 'BTN', isPFA: true });
+      const ai = new GtoAiPlayer({ position: 'BTN' });
       ai.setHoleCards([c('2', 'hearts'), c('2', 'diamonds')]); // 強いハンド
       const board: Card[] = [c('2', 'clubs'), c('2', 'spades'), c('A', 'hearts')];
       const context = {
         currentBet: 0, lastRaiseIncrement: 1, playerStack: 100, playerBetThisStreet: 0, bigBlind: 1,
         playerId: 'p1', pot: 10, facingBet: null as number | null, street: 'flop' as const,
+        isPFA: true, isIP: true,
       };
       const action = ai.decidePostflopAction(board, context);
       expect(['check', 'fold', 'call', 'raise']).toContain(action.type);
@@ -147,15 +149,26 @@ describe('GtoAiPlayer', () => {
     });
 
     test('facingBetがある場合のdecidePostflopAction (fold/call/raise)', () => {
-      const ai = new GtoAiPlayer({ position: 'BB', isPFA: false });
+      const ai = new GtoAiPlayer({ position: 'BB' });
       ai.setHoleCards([c('A', 'hearts'), c('4', 'clubs')]);
       const board: Card[] = [c('K', 'hearts'), c('7', 'hearts'), c('2', 'spades')];
       const context = {
         currentBet: 5, lastRaiseIncrement: 1, playerStack: 100, playerBetThisStreet: 0, bigBlind: 1,
         playerId: 'p2', pot: 10, facingBet: 5 as number | null, street: 'flop' as const,
+        isPFA: false, isIP: false,
       };
       const action = ai.decidePostflopAction(board, context);
       expect(['fold', 'call', 'raise']).toContain(action.type);
+    });
+
+    test('setPosition() でポジションを更新できる (ディーラーボタン移動対応)', () => {
+      const ai = new GtoAiPlayer({ position: 'UTG' });
+      ai.setHoleCards([c('A', 'spades'), c('A', 'hearts')]);
+      ai.setPosition('BB');
+      const context = preflopContext({ scenario: 'RFI', currentBet: 1, playerBetThisStreet: 1 });
+      // BBに更新されたので、RFIシナリオでは常にcheckになるはず
+      const action = ai.decidePreflopAction(context);
+      expect(action.type).toBe('check');
     });
   });
 });

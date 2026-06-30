@@ -11,6 +11,8 @@ export interface BettingRoundConfig {
   street: 'preflop' | 'flop' | 'turn' | 'river';
   /** BBのオプション権があるか（プリフロップで誰もレイズしていない場合） */
   bbHasOption: boolean;
+  /** レイズ（オールインレイズ含む）が発生した際に呼ばれるコールバック。プリフロップアグレッサー追跡用 */
+  onAggression?: (playerId: string) => void;
 }
 
 export interface BettingRoundResult {
@@ -176,6 +178,7 @@ export class BettingRound {
     });
     this.playersToAct.delete(player.id);
     this.bbOptionPending = false; // レイズでBBオプションは消える
+    this.config.onAggression?.(player.id);
   }
 
   private applyAllIn(player: TablePlayer, amount: number): void {
@@ -195,6 +198,7 @@ export class BettingRound {
         });
       }
       this.currentBet = totalBet;
+      this.config.onAggression?.(player.id);
     }
 
     this.updatePlayer(updated);

@@ -118,4 +118,46 @@ describe('GameEngine (TestGameEngine使用)', () => {
       expect(engine.getActionOrderForStreet('flop')[0]).toBe('p0'); // BBが先
     });
   });
+
+  describe('プリフロップアグレッサー追跡 (preflopAggressorId / preflopRaiseCount)', () => {
+    test('誰もレイズしない場合、デフォルトでBBがアグレッサーになり回数は0', async () => {
+      const table = makeTable(3); // p0=BTN, p1=SB, p2=BB
+      const engine = new TestGameEngine(table);
+      await engine.playHand(); // 全員デフォルト(call/check)で進行、レイズなし
+      expect(engine.getPreflopAggressorId()).toBe('p2'); // BB
+      expect(engine.getPreflopRaiseCount()).toBe(0);
+    });
+
+    test('1回レイズされると、そのプレイヤーがアグレッサーになり回数は1', async () => {
+      const table = makeTable(3);
+      const engine = new TestGameEngine(table);
+      engine.queueAction('p0', { type: 'raise', playerId: 'p0', amount: 3, timestamp: Date.now() });
+      await engine.playHand();
+      expect(engine.getPreflopAggressorId()).toBe('p0');
+      expect(engine.getPreflopRaiseCount()).toBe(1);
+    });
+
+    test('3Bet(2回目のレイズ)が発生すると、最後のレイザーがアグレッサーになり回数は2', async () => {
+      const table = makeTable(3);
+      const engine = new TestGameEngine(table);
+      engine.queueAction('p0', { type: 'raise', playerId: 'p0', amount: 3, timestamp: Date.now() });
+      engine.queueAction('p1', { type: 'raise', playerId: 'p1', amount: 9, timestamp: Date.now() });
+      await engine.playHand();
+      expect(engine.getPreflopAggressorId()).toBe('p1');
+      expect(engine.getPreflopRaiseCount()).toBe(2);
+    });
+
+    test('ポストフロップのレイズはプリフロップアグレッサーに影響しない', async () => {
+      const table = makeTable(2);
+      const engine = new TestGameEngine(table);
+      // プリフロップ: p0(BTN/SB)がレイズ、p1(BB)はコール
+      engine.queueAction('p0', { type: 'raise', playerId: 'p0', amount: 3, timestamp: Date.now() });
+      engine.queueAction('p1', { type: 'call', playerId: 'p1', amount: 2, timestamp: Date.now() });
+      // フロップ: p1(HUではBBが先手)がレイズしてもpreflopAggressorIdは変化しないはず
+      engine.queueAction('p1', { type: 'raise', playerId: 'p1', amount: 5, timestamp: Date.now() });
+      await engine.playHand();
+      expect(engine.getPreflopAggressorId()).toBe('p0');
+      expect(engine.getPreflopRaiseCount()).toBe(1);
+    });
+  });
 });

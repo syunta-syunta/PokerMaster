@@ -9,8 +9,9 @@ import { GTO_VS_3BET_RANGES, GTO_8MAX_RFI_RANGES } from './data/gto-vs-3bet-and-
 import { GTO_8MAX_VS3BET_RANGES, GTO_VS4BET_RANGES } from './data/gto-vs-4bet-and-8max-vs3bet';
 
 export interface GtoAiConfig {
+  /** 初期ポジション。ディーラーボタンの移動に伴いハンドごとに変わるため、
+   *  毎ハンド開始時に setPosition() で更新すること。 */
   position: string;
-  isPFA: boolean;
 }
 
 /**
@@ -55,6 +56,11 @@ export class GtoAiPlayer {
 
   setHoleCards(cards: [Card, Card]): void {
     this.holeCards = cards;
+  }
+
+  /** ディーラーボタンの移動に伴い、毎ハンド開始時にポジションを更新する */
+  setPosition(position: string): void {
+    this.config.position = position;
   }
 
   /**
@@ -189,6 +195,9 @@ export class GtoAiPlayer {
   /**
    * ポストフロップのアクションを決定する。
    * PostflopEngine を使用。
+   *
+   * isPFA (プリフロップアグレッサーか) と isIP (インポジションか) は
+   * ハンドごとに変わる値であるため、呼び出し側 (GameEngine) が都度算出して渡す。
    */
   decidePostflopAction(
     communityCards: Card[],
@@ -197,6 +206,8 @@ export class GtoAiPlayer {
       pot: number;
       facingBet: number | null;
       street: 'flop' | 'turn' | 'river';
+      isPFA: boolean;
+      isIP: boolean;
     },
   ): PlayerAction {
     if (!this.holeCards) throw new Error('Hole cards not set');
@@ -209,8 +220,8 @@ export class GtoAiPlayer {
       communityCards,
       handResult,
       {
-        isPFA: this.config.isPFA,
-        isIP: false, // TODO: ゲームエンジンからポジション情報を受け取る
+        isPFA: context.isPFA,
+        isIP: context.isIP,
         spr,
         street: context.street,
         pot: context.pot,
