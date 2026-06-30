@@ -37,6 +37,16 @@ export class TestGameEngine extends GameEngine {
     return this.actionOrderLog.filter(e => e.street === street).map(e => e.playerId);
   }
 
+  /** テスト用: 現在のプリフロップアグレッサーIDを取得 */
+  getPreflopAggressorId(): string | null {
+    return this.preflopAggressorId;
+  }
+
+  /** テスト用: 現在のプリフロップレイズ回数を取得 */
+  getPreflopRaiseCount(): number {
+    return this.preflopRaiseCount;
+  }
+
   protected async requestAction(
     playerId: string,
     context: BettingContext,

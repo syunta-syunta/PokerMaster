@@ -134,4 +134,75 @@ describe('BettingRound', () => {
       expect(round.getNextActingPlayerId()).toBeNull();
     });
   });
+
+  describe('onAggression コールバック', () => {
+    test('レイズ発生時にコールバックがレイザーIDで呼ばれる', () => {
+      const players = makePlayers(3);
+      const aggressors: string[] = [];
+      const round = new BettingRound(
+        players,
+        { bigBlind: 1, street: 'flop', bbHasOption: false, onAggression: (id) => aggressors.push(id) },
+        0,
+      );
+      round.applyAction(act('p0', 'raise', 5));
+      expect(aggressors).toEqual(['p0']);
+    });
+
+    test('複数回レイズされると複数回呼ばれる(3Bet等)', () => {
+      const players = makePlayers(3);
+      const aggressors: string[] = [];
+      const round = new BettingRound(
+        players,
+        { bigBlind: 1, street: 'flop', bbHasOption: false, onAggression: (id) => aggressors.push(id) },
+        0,
+      );
+      round.applyAction(act('p0', 'raise', 5));
+      round.applyAction(act('p1', 'raise', 15));
+      expect(aggressors).toEqual(['p0', 'p1']);
+    });
+
+    test('現在のベットを超えるオールイン(レイズ相当)では呼ばれる', () => {
+      const players = makePlayers(3, 100);
+      players[2].stack = 50;
+      const aggressors: string[] = [];
+      const round = new BettingRound(
+        players,
+        { bigBlind: 1, street: 'flop', bbHasOption: false, onAggression: (id) => aggressors.push(id) },
+        0,
+      );
+      round.applyAction(act('p0', 'check'));
+      round.applyAction(act('p1', 'check'));
+      round.applyAction(act('p2', 'all-in', 50)); // 0からの50ベット = レイズ相当
+      expect(aggressors).toEqual(['p2']);
+    });
+
+    test('チェック・コール・フォールドでは呼ばれない', () => {
+      const players = makePlayers(3);
+      const aggressors: string[] = [];
+      const round = new BettingRound(
+        players,
+        { bigBlind: 1, street: 'flop', bbHasOption: false, onAggression: (id) => aggressors.push(id) },
+        0,
+      );
+      round.applyAction(act('p0', 'check'));
+      round.applyAction(act('p1', 'check'));
+      round.applyAction(act('p2', 'check'));
+      expect(aggressors).toEqual([]);
+    });
+
+    test('現在のベットを超えないオールイン(コール相当)では呼ばれない', () => {
+      const players = makePlayers(3, 100);
+      players[2].stack = 3;
+      const aggressors: string[] = [];
+      const round = new BettingRound(
+        players,
+        { bigBlind: 1, street: 'flop', bbHasOption: false, onAggression: (id) => aggressors.push(id) },
+        0,
+      );
+      round.applyAction(act('p0', 'raise', 10));
+      round.applyAction(act('p1', 'call', 10));
+      round.applyAction(act('p2', 'all-in', 3)); // 10に届かないコール相当のオールイン
+      expect(aggressors).toEqual(['p0']); // p2のオールインはカウントされない
+    });
+  });
 });

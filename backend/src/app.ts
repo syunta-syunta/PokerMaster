@@ -4,6 +4,7 @@ import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth-routes';
+import gameRoutes from './routes/gameRoutes';
 
 // 環境変数を読み込み
 dotenv.config();
@@ -60,6 +61,9 @@ app.get('/api', (req: Request, res: Response) => {
 
 // 認証ルート
 app.use('/api/auth', authRoutes);
+
+// ゲームルート
+app.use('/api/game', gameRoutes);
 
 // 404エラーハンドラー
 app.all('*', (req: Request, res: Response) => {

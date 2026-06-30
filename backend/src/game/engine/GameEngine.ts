@@ -19,6 +19,16 @@ export abstract class GameEngine {
   protected communityCards: Card[] = [];
   protected currentHandId: string = '';
   protected currentStreet: Street = 'preflop';
+  /** 現在のハンドでプリフロップアグレッサーのプレイヤーID（レイズなしの場合はBB） */
+  protected preflopAggressorId: string | null = null;
+  /** 現在のハンドでプリフロップに発生したレイズの回数（0=RFI, 1=vsOpen, 2=vs3Bet, 3+=vs4Bet） */
+  protected preflopRaiseCount: number = 0;
+  /**
+   * 進行中のベッティングラウンド（ラウンド完了後はnull）。
+   * potManagerはラウンド完了後にしか更新されないため、ラウンド進行中の
+   * 正確なポット額（現在のストリートで集まった額を含む）を取得するために公開する。
+   */
+  protected currentBettingRound: BettingRound | null = null;
 
   constructor(table: GameTable) {
     this.table = table;
@@ -64,6 +74,10 @@ export abstract class GameEngine {
     // ブラインドをポスト
     this.postBlinds();
 
+    // プリフロップアグレッサー追跡をリセット（デフォルトはBB = 誰もレイズしなかった場合の挙動）
+    this.preflopAggressorId = this.table.getBBPlayer().id;
+    this.preflopRaiseCount = 0;
+
     // ホールカードをディール
     this.dealHoleCards();
 
@@ -71,25 +85,25 @@ export abstract class GameEngine {
 
     // プリフロップ
     const foldedPreflop = await this.runBettingRound('preflop', true);
-    if (foldedPreflop) return this.handleAllFolded();
+    if (foldedPreflop) return await this.handleAllFolded();
 
     // フロップ
     this.dealCommunityCards(3);
     await this.broadcastSnapshot('flop');
     const foldedFlop = await this.runBettingRound('flop', false);
-    if (foldedFlop) return this.handleAllFolded();
+    if (foldedFlop) return await this.handleAllFolded();
 
     // ターン
     this.dealCommunityCards(1);
     await this.broadcastSnapshot('turn');
     const foldedTurn = await this.runBettingRound('turn', false);
-    if (foldedTurn) return this.handleAllFolded();
+    if (foldedTurn) return await this.handleAllFolded();
 
     // リバー
     this.dealCommunityCards(1);
     await this.broadcastSnapshot('river');
     const foldedRiver = await this.runBettingRound('river', false);
-    if (foldedRiver) return this.handleAllFolded();
+    if (foldedRiver) return await this.handleAllFolded();
 
     // ショーダウン
     return this.runShowdown();
@@ -159,9 +173,16 @@ export abstract class GameEngine {
         bigBlind: this.table.config.bigBlind,
         street: street as 'preflop' | 'flop' | 'turn' | 'river',
         bbHasOption: isPreflop,
+        onAggression: isPreflop
+          ? (playerId: string) => {
+              this.preflopAggressorId = playerId;
+              this.preflopRaiseCount++;
+            }
+          : undefined,
       },
       initialBet,
     );
+    this.currentBettingRound = round;
 
     while (!round.isOver()) {
       const nextId = round.getNextActingPlayerId();
@@ -179,6 +200,7 @@ export abstract class GameEngine {
 
     // 結果をtableに反映
     round.getPlayers().forEach(p => this.table.updatePlayer(p));
+    this.currentBettingRound = null;
 
     // ポット計算
     this.potManager.calculatePots(this.table.getAllPlayers());
@@ -230,7 +252,7 @@ export abstract class GameEngine {
     return result;
   }
 
-  private handleAllFolded(): HandResultEvent {
+  private async handleAllFolded(): Promise<HandResultEvent> {
     const lastPlayer = this.table.getPlayersInHand()[0];
     const distribution = this.potManager.distributePots(
       [{ playerIds: [lastPlayer.id], handResult: null as unknown as HandResultEvent['playerHands'][0]['handResult'] }],
@@ -248,6 +270,7 @@ export abstract class GameEngine {
       playerHands: [],
     };
 
+    await this.broadcastHandResult(result);
     this.table.advanceDealer();
     return result;
   }

@@ -76,7 +76,8 @@ export type PositionName =
 
 /** ゲーム設定 */
 export interface GameConfig {
-  maxPlayers: 2 | 6 | 8 | 9;
+  // 2-9人まで対応 (GameTable.POSITION_NAMESが2-9人分のポジション定義を持つため)
+  maxPlayers: 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   smallBlind: number;          // BB単位 (通常 0.5)
   bigBlind: number;            // BB単位 (通常 1.0)
   startingStack: number;       // BB単位 (通常 100)
@@ -230,4 +231,29 @@ export interface DefenderFrequencies {
   fold: number;   // 合計100
   call: number;
   raise: number;
+}
+
+// ─── Phase 3D 追加型 ────────────────────────────────────────────
+
+/** ゲームルームの設定 */
+export interface RoomConfig {
+  tableSize: 2 | 3 | 4 | 5 | 6;  // 合計プレイヤー数 (人間1 + AI n-1)
+  aiThinkingDelayMs: number;       // AI が考える演出ディレイ (default: 800)
+  gameConfig: GameConfig;          // テーブル設定 (blinds, stack, timeout)
+}
+
+/** ゲームルームの状態 */
+export type RoomStatus =
+  | 'waiting'   // 人間プレイヤー待ち
+  | 'playing'   // ハンド進行中
+  | 'finished'; // ゲーム終了 (プレイヤーが離脱またはバスト)
+
+/** REST API: ゲーム開始リクエスト */
+export interface StartGameRequest {
+  tableSize: 2 | 3 | 4 | 5 | 6;
+}
+
+/** REST API: ゲーム開始レスポンス */
+export interface StartGameResponse {
+  gameId: string;
 }
